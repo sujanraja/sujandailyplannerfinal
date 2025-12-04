@@ -4,5 +4,5 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  base: '/sujandailyplannerfinal/', // GitHub repo name
+  base: '/sujandailyplannerfinal/',   // 👈 must match GitHub repo name
 });
