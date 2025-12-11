@@ -13,9 +13,8 @@ import {
 } from 'lucide-react';
 
 // ================= JSONBIN CONFIG =================
-// Put your real values here (inside quotes)
 const JSONBIN_API_KEY = '$2a$10$nS.leAZvr93E8pr9xk/6recMfoV0yV5hVnl8iZeMlowppje96O7gC';
-const JSONBIN_BIN_ID = '69317500d0ea881f40125b99'; // e.g. 675f8e90acd16f3d88abcd12
+const JSONBIN_BIN_ID = '69317500d0ea881f40125b99';
 
 export default function DailyPlanner() {
   const [tasks, setTasks] = useState([]);
@@ -37,10 +36,7 @@ export default function DailyPlanner() {
   const categories = ['work', 'personal', 'health', 'learning', 'other'];
   const priorities = ['low', 'medium', 'high'];
 
-  // ❌ NO localStorage usage
-  // ✅ Only keep tasks in memory + JSONBin
-
-  // Schedule alarms for today's tasks
+  // ======= Notifications: schedule alarms for today's tasks =======
   useEffect(() => {
     if (!notificationsEnabled) return;
 
@@ -89,12 +85,13 @@ export default function DailyPlanner() {
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
       setNotificationsEnabled(true);
-      alert('Notifications enabled for today\'s tasks.');
+      alert("Notifications enabled for today's tasks.");
     } else {
       alert('Notifications are blocked. Please allow them in your browser.');
     }
   };
 
+  // ======= Task CRUD =======
   const addTask = () => {
     if (newTask.title && newTask.time) {
       setTasks([
@@ -104,6 +101,7 @@ export default function DailyPlanner() {
           id: Date.now(),
           date: selectedDate,
           completed: false,
+          // score will be entered later
         },
       ]);
       setNewTask({
@@ -130,13 +128,25 @@ export default function DailyPlanner() {
     );
   };
 
+  // Enter / update score for a task (only when completed)
+  const updateTaskScore = (id, value) => {
+    const scoreNum = Number(value);
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === id
+          ? { ...task, score: isNaN(scoreNum) ? 0 : scoreNum }
+          : task
+      )
+    );
+  };
+
   const clearAllTasks = () => {
     const ok = window.confirm('Clear all tasks for all days?');
     if (!ok) return;
     setTasks([]);
   };
 
-  // Save tasks to JSONBin (cloud) ONLY
+  // ======= JSONBin Save / Load =======
   const saveToJsonBin = async () => {
     if (!JSONBIN_API_KEY || !JSONBIN_BIN_ID) {
       alert('JSONBin is not configured. Please set API key and Bin ID in the code.');
@@ -166,7 +176,6 @@ export default function DailyPlanner() {
     }
   };
 
-  // Load tasks from JSONBin manually (when user clicks Load)
   const loadFromJsonBin = async () => {
     if (!JSONBIN_API_KEY || !JSONBIN_BIN_ID) {
       alert('JSONBin is not configured. Please set API key and Bin ID in the code.');
@@ -200,6 +209,7 @@ export default function DailyPlanner() {
     }
   };
 
+  // ======= Import / Export local JSON =======
   const exportToJSON = () => {
     const dataStr = JSON.stringify(
       { tasks, exportDate: new Date().toISOString() },
@@ -235,6 +245,7 @@ export default function DailyPlanner() {
     }
   };
 
+  // ======= Filtering & Score =======
   const filteredTasks = tasks
     .filter(
       (task) =>
@@ -256,9 +267,22 @@ export default function DailyPlanner() {
     }
   };
 
+  const completedTasks = filteredTasks.filter((t) => t.completed);
+
+  // total score = sum of scores of completed tasks
+  const scoreTotal = completedTasks.reduce(
+    (sum, t) => sum + (Number(t.score) || 0),
+    0
+  );
+
+  // max possible = number of tasks * 100 (because each task full = 100)
+  const maxScoreToday = filteredTasks.length * 100;
+
   const stats = {
     total: filteredTasks.length,
-    completed: filteredTasks.filter((t) => t.completed).length,
+    completed: completedTasks.length,
+    scoreTotal,
+    maxScoreToday,
   };
 
   return (
@@ -288,7 +312,7 @@ export default function DailyPlanner() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-4">
             <div className="bg-gradient-to-br from-blue-100 to-blue-50 rounded-lg p-3 sm:p-4">
               <div className="text-xs sm:text-sm text-gray-600">Total Tasks</div>
               <div className="text-xl sm:text-2xl font-bold text-blue-700">
@@ -299,6 +323,12 @@ export default function DailyPlanner() {
               <div className="text-xs sm:text-sm text-gray-600">Completed</div>
               <div className="text-xl sm:text-2xl font-bold text-green-700">
                 {stats.completed}
+              </div>
+            </div>
+            <div className="bg-gradient-to-br from-purple-100 to-purple-50 rounded-lg p-3 sm:p-4">
+              <div className="text-xs sm:text-sm text-gray-600">Score Today</div>
+              <div className="text-xl sm:text-2xl font-bold text-purple-700">
+                {stats.scoreTotal} / {stats.maxScoreToday || 0}
               </div>
             </div>
           </div>
@@ -521,6 +551,25 @@ export default function DailyPlanner() {
                             <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded capitalize">
                               {task.category}
                             </span>
+
+                            {/* Score input per task (0–100), editable only when completed */}
+                            <div className="flex items-center gap-1 bg-purple-50 text-purple-700 px-2 py-1 rounded">
+                              <span className="text-[11px] sm:text-xs">Score:</span>
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={
+                                  task.score === undefined ? '' : task.score
+                                }
+                                onChange={(e) =>
+                                  updateTaskScore(task.id, e.target.value)
+                                }
+                                disabled={!task.completed}
+                                className="w-16 px-1 py-0.5 border border-purple-300 rounded text-xs bg-white disabled:opacity-50 disabled:bg-gray-100"
+                              />
+                              <span className="text-[11px] sm:text-xs">/100</span>
+                            </div>
                           </div>
                         </div>
                       </div>
