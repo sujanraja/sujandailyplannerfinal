@@ -20,8 +20,8 @@ export const usePomodoro = (setTasks) => {
   const PROD_REST_MS = 5 * 60 * 1000;
 
   // 🧪 TEST MODE (set to null in production)
-  const WORK_TEST_MS = 10000; // Change to 10000 for 10-second testing
-  const REST_TEST_MS = 10000; // Change to 10000 for 10-second testing
+  const WORK_TEST_MS = null; // Change to 10000 for 10-second testing
+  const REST_TEST_MS = null; // Change to 10000 for 10-second testing
 
   const getWorkMs = () => WORK_TEST_MS || PROD_WORK_MS;
   const getRestMs = () => REST_TEST_MS || PROD_REST_MS;
